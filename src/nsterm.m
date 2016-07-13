@@ -4085,6 +4085,22 @@ unwind_apploopnr (Lisp_Object not_used)
   q_event_ptr = NULL;
 }
 
+static void logFileQueue ()
+{
+  NSLog(@"Current file queue");
+  NSEnumerator *e = [ns_pending_files objectEnumerator];
+  NSString *f;
+  while (f = (NSString*)[e nextObject]) {
+    NSLog(f);
+  }
+}
+
+static void queueFile (NSString *file)
+{
+  [ns_pending_files addObject: file];
+  logFileQueue();
+}
+
 static int
 ns_read_socket (struct terminal *terminal, struct input_event *hold_quit)
 /* --------------------------------------------------------------------------
@@ -4133,6 +4149,8 @@ ns_read_socket (struct terminal *terminal, struct input_event *hold_quit)
       && [(EmacsApp *)NSApp openFile: [ns_pending_files objectAtIndex: 0]])
     {
       [ns_pending_files removeObjectAtIndex: 0];
+      NSLog(@"Opened file!");
+      logFileQueue();
     }
   /* Deal with pending service requests. */
   else if (ns_pending_service_names && [ns_pending_service_names count] != 0
@@ -4168,7 +4186,6 @@ ns_read_socket (struct terminal *terminal, struct input_event *hold_quit)
 
   return nevents;
 }
-
 
 int
 ns_select (int nfds, fd_set *readfds, fd_set *writefds,
@@ -5310,8 +5327,10 @@ ns_term_shutdown (int sig)
   struct frame *emacsframe = SELECTED_FRAME ();
   NSEvent *theEvent = [NSApp currentEvent];
 
-  if (!emacs_event)
+  if (!emacs_event) {
+    NSLog(@"Not emacs_event!!!!!!");
     return NO;
+  }
 
   emacs_event->kind = NS_NONKEY_EVENT;
   emacs_event->code = KEY_NS_OPEN_FILE_LINE;
@@ -5455,7 +5474,7 @@ not_in_argv (NSString *arg)
 - (BOOL)application: sender openFile: (NSString *)file
 {
   if (ns_do_open_file || not_in_argv (file))
-    [ns_pending_files addObject: file];
+    queueFile(file);
   return YES;
 }
 
@@ -5464,7 +5483,7 @@ not_in_argv (NSString *arg)
 - (BOOL)application: sender openTempFile: (NSString *)file
 {
   if (ns_do_open_file || not_in_argv (file))
-    [ns_pending_files addObject: file];
+    queueFile(file);
   return YES;
 }
 
@@ -5473,7 +5492,7 @@ not_in_argv (NSString *arg)
 - (BOOL)application: sender openFileWithoutUI: (NSString *)file
 {
   if (ns_do_open_file || not_in_argv (file))
-    [ns_pending_files addObject: file];
+    queueFile(file);
   return YES;
 }
 
@@ -5487,7 +5506,7 @@ not_in_argv (NSString *arg)
      if --option is the last option.  */
   while ((file = [files nextObject]) != nil)
     if (ns_do_open_file || not_in_argv (file))
-      [ns_pending_files addObject: file];
+      queueFile(file);
 
   [self replyToOpenOrPrint: NSApplicationDelegateReplySuccess];
 
